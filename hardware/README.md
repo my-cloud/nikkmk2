@@ -4,6 +4,19 @@ Windows binaries ni-wine installs into the prefix so that NI's hardware
 services see controllers. All of them are 64-bit, link no CRT and are built
 from these sources by the packages.
 
+## nikkmk2.sys + komplete-kontrol-mk2.inf
+
+A copy of nimk3.sys for the Komplete Kontrol S49/S61/S88 MK2
+(17cc:1610/1620/1630). It takes the place of NI's `nikksm2usb.sys` (KMDF,
+imports WDFLDR.SYS).
+- It registers `{C404974A-C9C1-4477-A9E1-9F7B8E0E4BC9}`, the interface
+  NIHardwareService looks for.
+- Display: MI_03 (kind 3, bulk OUT 0x03). Audio: MI_00 (kind 0).
+- Other interfaces (MI_04 DFU) get no device.
+- GET_VERSION returns `{2,0,5,0}`, like nikksm2usb.sys 5.0.0.57.
+
+See ../README.md for install and undo.
+
 ## nirescan.exe
 
 An auto-start service. NIHostIntegrationAgent and NIHardwareService

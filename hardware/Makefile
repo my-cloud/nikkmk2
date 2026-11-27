@@ -13,12 +13,16 @@ HASH := \#
 DDK = $(patsubst %/ntddk.h,%,$(filter %/ddk/ntddk.h,\
     $(shell echo '$(HASH)include <ddk/ntddk.h>' | $(CC) -xc -M -MG - 2>/dev/null)))
 
-FILES = nimk3.sys nirescan.exe nimidi.exe nidrvinst.exe bmidilib2.dll maschine-mk3.inf
+FILES = nimk3.sys nikkmk2.sys komplete-kontrol-mk2.inf nirescan.exe nimidi.exe nidrvinst.exe bmidilib2.dll maschine-mk3.inf
 DATADIR = ../src/ni_wine/data
 
-all: nimk3.sys nirescan.exe nimidi.exe nidrvinst.exe bmidilib2.dll
+all: nimk3.sys nikkmk2.sys nirescan.exe nimidi.exe nidrvinst.exe bmidilib2.dll
 
 nimk3.sys: nimk3.c nimidi.h
+	$(CC) $(HW_CFLAGS) -I$(DDK) -shared -nostdlib -nostartfiles \
+	    -Wl,--subsystem,native -Wl,--entry,DriverEntry -o $@ $< -lntoskrnl -lhal -lgcc
+
+nikkmk2.sys: nikkmk2.c nimidi.h
 	$(CC) $(HW_CFLAGS) -I$(DDK) -shared -nostdlib -nostartfiles \
 	    -Wl,--subsystem,native -Wl,--entry,DriverEntry -o $@ $< -lntoskrnl -lhal -lgcc
 
@@ -41,6 +45,6 @@ install: all
 	install -m644 $(FILES) $(DATADIR)
 
 clean:
-	rm -f nimk3.sys nirescan.exe nimidi.exe nidrvinst.exe bmidilib2.dll
+	rm -f nimk3.sys nikkmk2.sys nirescan.exe nimidi.exe nidrvinst.exe bmidilib2.dll
 
 .PHONY: all install clean

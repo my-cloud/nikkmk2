@@ -1,0 +1,50 @@
+; Komplete Kontrol S49/S61/S88 MK2: nikkmk2.sys on the display and audio
+; interfaces, no driver on the DFU interfaces NI's nikksm2usb.inf also claims.
+; Adapted from ni-wine's maschine-mk3.inf (README.md). The name sorts before
+; nikksm2usb.inf.
+
+[Version]
+Signature="$Windows NT$"
+Class=NIUSBDevice
+ClassGuid={E76E9530-E0A0-4B82-A618-D3F60C00DDF4}
+Provider=%Provider%
+DriverVer=11/27/2026,1.0.0.0
+
+[Manufacturer]
+%Provider%=Models,NTamd64
+
+[Models.NTamd64]
+%Display%=Nikkmk2,USB\VID_17CC&PID_1610&MI_03
+%Audio%=Nikkmk2,USB\VID_17CC&PID_1610&MI_00
+%Update%=NoDriver,USB\VID_17CC&PID_1610&MI_04
+%Update%=NoDriver,USB\VID_17CC&PID_1612
+%Display%=Nikkmk2,USB\VID_17CC&PID_1620&MI_03
+%Audio%=Nikkmk2,USB\VID_17CC&PID_1620&MI_00
+%Update%=NoDriver,USB\VID_17CC&PID_1620&MI_04
+%Update%=NoDriver,USB\VID_17CC&PID_1622
+%Display%=Nikkmk2,USB\VID_17CC&PID_1630&MI_03
+%Audio%=Nikkmk2,USB\VID_17CC&PID_1630&MI_00
+%Update%=NoDriver,USB\VID_17CC&PID_1630&MI_04
+%Update%=NoDriver,USB\VID_17CC&PID_1632
+
+[Nikkmk2.NTamd64]
+
+[Nikkmk2.NTamd64.Services]
+AddService=nikkmk2,0x00000002,Service
+
+[Service]
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\nikkmk2.sys
+
+[NoDriver.NTamd64]
+
+[NoDriver.NTamd64.Services]
+AddService=,0x00000002
+
+[Strings]
+Provider="ni-wine"
+Display="Komplete Kontrol S MK2 Display"
+Audio="Komplete Kontrol S MK2 Audio"
+Update="Komplete Kontrol S MK2 Firmware Update"

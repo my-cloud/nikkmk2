@@ -1,126 +1,102 @@
-# Native Access 2 & Kontakt 8 on Linux
+# nikkmk2: Komplete Kontrol S MK2 screens under Wine
 
-[Native Access](https://www.native-instruments.com/en/specials/native-access-2/)
-under Wine, set up with one command. Products install from Native Access
-as on Windows, Kontakt 8 included.
+`nikkmk2.sys` is a Wine stand-in for Native Instruments' `nikksm2usb.sys`, the
+USB driver for the two screens of the Komplete Kontrol S49 / S61 / S88 MK2
+(USB 17cc:1610 / 1620 / 1630).
 
-![Native Access running under Wine on Linux](docs/screenshot.png)
+NI's driver is a KMDF driver: it imports `WDFLDR.SYS`, and Wine cannot load
+KMDF drivers. So under Wine NIHardwareService never finds the screens. The
+Light Guide and the buttons still work, because they are plain HID. With
+`nikkmk2.sys` NI's own software draws both screens.
 
-**This repository does NOT contain, grant access to, or distribute any
-software from Native Instruments in any way.** It only provides scripts and
-instructions for installing software you have legitimately obtained from
-Native Instruments and you need your own account to download and use
-plugins and instruments.
+It is a port of `nimk3.sys`, the Maschine MK3 driver of ni-wine by Selim
+Bucher and contributors: https://github.com/selimbucher/native-instruments.
+All the credit for the design goes there. The rest of this repository is
+ni-wine as upstream ships it; its README is [README.ni-wine.md](README.ni-wine.md).
+
+This repository does not contain or distribute any software from Native
+Instruments.
+
+## What changed from nimk3.sys
+
+The source is [hardware/nikkmk2.c](hardware/nikkmk2.c), with
+[hardware/komplete-kontrol-mk2.inf](hardware/komplete-kontrol-mk2.inf).
+
+NI's `nikksm2usb.sys` (5.0.0.57) and the MK3's `nimc3usb.sys` belong to the
+same driver family:
+- they handle the same IOCTLs;
+- both report kind 3 for the vendor interface (class 0xff, subclass 0xbd);
+- both allow bulk writes only on that interface.
+
+The port changes:
+- the device interface GUID to `{C404974A-C9C1-4477-A9E1-9F7B8E0E4BC9}`, the
+  one NIHardwareService looks for an S MK2 under;
+- the interfaces: MI_03 is the display (bulk OUT 0x03, kind 3) and MI_00 is
+  audio (kind 0). AddDevice refuses every other interface, such as MI_04,
+  the firmware-update one;
+- GET_VERSION to `{2,0,5,0,0,0,0,0}`, which is what `nikksm2usb.sys` reports.
+
+## Tested
+
+- Hardware: Komplete Kontrol S88 MK2.
+- Wine: 11.17-staging, through vstenv 0.1.168.
+- NI software: NIHardwareService 2.8.2.
+- Result: both screens and the Light Guide work in Maschine 2.
+
+S49 and S61 MK2 have the same interfaces and are in the INF, but they are
+untested.
+
+## Build
+
+You need a 64-bit mingw-w64 cross compiler (Arch: `mingw-w64-gcc`).
+
+    cd hardware
+    make nikkmk2.sys
+    x86_64-w64-mingw32-objdump -p nikkmk2.sys | grep 'DLL Name'   # ntoskrnl.exe and HAL.dll only
+
+Or in a container, without installing anything on the host:
+
+    podman run --rm -v "$PWD/hardware:/src:Z" -w /src docker.io/library/archlinux:latest \
+        sh -c 'pacman -Syu --noconfirm --needed mingw-w64-gcc make && make nikkmk2.sys'
 
 ## Install
 
-### Arch
+Your prefix needs:
+- NI's Komplete Kontrol MK2 driver installed;
+- the keyboard's USB and hidraw nodes writable by your user (for example a
+  udev rule with `TAG+="uaccess"` for 17cc:1610/1620/1630).
 
-```sh
-yay -S ni-wine
-```
+The simplest way puts the build in place of NI's file. The device bindings
+that NI's installer made then load it:
 
-### NixOS
-
-As a flake input, with home-manager:
-
-```nix
-inputs.ni-wine.url = "github:selimbucher/native-instruments";
-# ...
-home.packages = [ inputs.ni-wine.packages.${pkgs.system}.default ];
-```
-
-Or without: `nix profile install github:selimbucher/native-instruments`.
-
-For the Maschine Mikro MK3, also in the system configuration:
-
-```nix
-services.udev.packages = [ inputs.ni-wine.packages.${pkgs.system}.default ];
-```
-
-### Fedora
-
-```sh
-sudo dnf copr enable selimbucher/ni-wine
-sudo dnf install ni-wine
-```
-
-### Ubuntu (24.04 / 26.04) and Mint 22
-
-```sh
-sudo dpkg --add-architecture i386   # Ubuntu 24.04 only
-wget -qO- https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key
-source /etc/os-release
-sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/$UBUNTU_CODENAME/winehq-$UBUNTU_CODENAME.sources
-sudo add-apt-repository ppa:selimbucher/ni-wine
-sudo apt update   # Mint only
-sudo apt install ni-wine
-```
-
-## Usage
-
-Start **Native Access** from your app launcher or run `native-access`. The
-first start sets up the Wine prefix at `~/.wine-ni` and installs Native
-Access into it. Installed plugins land in that prefix.
-
-Do not launch with something like `wine "Native Access.exe"`.
-
-More commands with `ni --help`.
-Environment:
-- `NI_WINE_PREFIX` (prefix location, default `~/.wine-ni`),
-- `WINE` (wine binary override),
-- `NI_WINE_DEBUG` (keep Wine debug output), `NI_WINE_SCALE` (Native Access UI scale, default `GDK_SCALE`; `1` turns it off).
-
-### Linux DAWs (yabridge)
-
-You need to use yabridge's development build, which has the fixes for Wine 10 and
-newer. Its last release (5.1.1) would need Wine 9.21, which Native Access
-doesn't run on.
-
-- Arch: `yay -S yabridge-wine10-git yabridgectl-wine10-git`
-- Fedora: `sudo dnf copr enable ycollet/audinux && sudo dnf install yabridge`
-- NixOS: the `inputs.ni-wine.overlays.yabridge` overlay builds it against
-  ni-wine's Wine (also set `inputs.ni-wine.inputs.nixpkgs.follows = "nixpkgs"`)
-- Others: the [nightly build](https://nightly.link/robbert-vdh/yabridge/workflows/build/master)
+    P=/path/to/wineprefix
+    D="$P/drive_c/windows/system32/drivers"
+    mkdir -p "$P/nikkmk2-backup"
+    cp -p "$D/nikksm2usb.sys" "$P"/system.reg "$P"/user.reg "$P/nikkmk2-backup/"
+    install -m 0644 hardware/nikkmk2.sys "$D/nikksm2usb.sys"
 
 Then:
+1. Quit the NI programs.
+2. Unplug and replug the keyboard, in the same USB port.
+3. Wait for the NI services to restart. ni-wine's `nirescan` service does that.
+4. Open Maschine or Komplete Kontrol.
 
-```sh
-yabridgectl add "$HOME/.wine-ni/drive_c/Program Files/Common Files/VST3"
-yabridgectl sync
-```
+If the screens still show nothing, stop Wine (`wineserver -k`) and start again.
 
-### Windows DAWs under Wine
+Another way is to bind the interfaces with `komplete-kontrol-mk2.inf` as a
+separate `nikkmk2` service, the way ni-wine installs `maschine-mk3.inf`.
 
-To use the plugins in a DAW that runs in its own Wine prefix, close the
-DAW and link its prefix:
+## Undo
 
-```sh
-ni link /path/to/daw-prefix
-```
+    cp -p "$P/nikkmk2-backup/nikksm2usb.sys" "$D/nikksm2usb.sys"
 
-Then rescan plugins in the DAW. The DAW may ask to be activated again.
-`ni unlink` undoes the link.
+Then replug the keyboard. Restore the `.reg` backups only if the prefix is
+broken, and only with Wine stopped.
 
-### Maschine MK3 and Maschine Mikro MK3
+## Debugging
 
-Plug it in before starting Maschine or the DAW. MIDI mode sends to the MIDI port `Native Instruments: Maschine MK3 Ctrl
-MIDI` or `Native Instruments: Maschine Mikro MK3`.
+    WINEDEBUG=warn+debugstr    # the driver's nikkmk2: lines
 
-## Troubleshooting
+## License
 
-- Diagnostics with `ni doctor`.
-- Native Access logs to `~/.wine-ni/drive_c/users/Public/Documents/Native Instruments/Logs/`.
-- ni-wine logs to `~/.local/state/ni-wine/`.
-
-If that doesn't help, [open an issue](https://github.com/selimbucher/native-instruments/issues).
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=selimbucher%2Fnative-instruments&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=selimbucher/native-instruments&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=selimbucher/native-instruments&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=selimbucher/native-instruments&type=date&legend=top-left" />
- </picture>
-</a>
+GPL-3.0, the same as upstream ni-wine (see [LICENSE](LICENSE)).
