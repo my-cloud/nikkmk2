@@ -4,8 +4,6 @@
 under Wine, set up with one command. Products install from Native Access
 as on Windows, Kontakt 8 included.
 
-![Native Access running under Wine on Linux](docs/screenshot.png)
-
 **This repository does NOT contain, grant access to, or distribute any
 software from Native Instruments in any way.** It only provides scripts and
 instructions for installing software you have legitimately obtained from
